@@ -89,16 +89,18 @@ func InfoDataDisplay(data Info) string {
 			statusIcon = "🟢"
 			color = "[green]"
 		}
-		talosLine := "no"
+		talosIcon := "🔴"
+		talosColor := "[red]"
 		if data.talos {
-			talosLine = "yes"
+			talosIcon = "🟢"
+			talosColor = "[green]"
 		}
 		information = "Name:.. " + data.Name +
 			"\n\nUser:.. " + data.User +
 			"\nIP:.... " + data.ip +
 			"\nPort:.. " + data.port +
-			"\nTalos:. " + talosLine +
 			"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.ping)) + "[::-] [white]" + statusIcon +
+			"\nTalos:. " + talosColor + strings.ToUpper(strconv.FormatBool(data.talos)) + "[::-] [white]" + talosIcon +
 			"\nPath:.. " + data.path[strings.LastIndex(data.path, "/")+1:]
 		if data.ping {
 			information = information + "\nNodes:. " + strconv.Itoa(data.nodes) +
