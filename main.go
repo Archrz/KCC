@@ -167,7 +167,7 @@ func kubePath() string {
 	return filepath.Join(UserHomeDir(), ".kube")
 }
 
-func pairedTalosConfig(kubeConfigPath string) string {
+func talosConfigPath(kubeConfigPath string) string {
 	return filepath.Join(UserHomeDir(), ".talos", "configs", filepath.Base(kubeConfigPath))
 }
 
@@ -215,7 +215,7 @@ func loadConfigs() {
 		config = append(config, newConfig)
 		infos = append(infos, Move(newConfig))
 		infos[num].path = filepath.FromSlash(path + "/configs" + newFolderPath + entry.Name())
-		_, talosErr := os.Stat(pairedTalosConfig(infos[num].path))
+		_, talosErr := os.Stat(talosConfigPath(infos[num].path))
 		infos[num].talos = talosErr == nil
 
 		if !infos[0].isBack {
@@ -328,7 +328,7 @@ func confirm(name string) {
 	//		log.Fatal(err)
 	//	}
 
-	talosSource := pairedTalosConfig(source)
+	talosSource := talosConfigPath(source)
 	if _, err := os.Stat(talosSource); err != nil {
 		return
 	}
