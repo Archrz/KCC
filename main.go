@@ -52,6 +52,7 @@ type Info struct {
 	ip            string
 	ping          bool
 	path          string
+	talos         bool
 	nodes         int
 	pods          int
 	status        string
@@ -88,10 +89,15 @@ func InfoDataDisplay(data Info) string {
 			statusIcon = "🟢"
 			color = "[green]"
 		}
+		talosLine := "no"
+		if data.talos {
+			talosLine = "yes"
+		}
 		information = "Name:.. " + data.Name +
 			"\n\nUser:.. " + data.User +
 			"\nIP:.... " + data.ip +
 			"\nPort:.. " + data.port +
+			"\nTalos:. " + talosLine +
 			"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.ping)) + "[::-] [white]" + statusIcon +
 			"\nPath:.. " + data.path[strings.LastIndex(data.path, "/")+1:]
 		if data.ping {
@@ -159,6 +165,10 @@ func kubePath() string {
 	return filepath.Join(UserHomeDir(), ".kube")
 }
 
+func pairedTalosConfig(kubeConfigPath string) string {
+	return filepath.Join(UserHomeDir(), ".talos", "configs", filepath.Base(kubeConfigPath))
+}
+
 func loadConfigs() {
 	entries, err := os.ReadDir(path + "/configs" + newFolderPath)
 	if err != nil {
@@ -203,6 +213,8 @@ func loadConfigs() {
 		config = append(config, newConfig)
 		infos = append(infos, Move(newConfig))
 		infos[num].path = filepath.FromSlash(path + "/configs" + newFolderPath + entry.Name())
+		_, talosErr := os.Stat(pairedTalosConfig(infos[num].path))
+		infos[num].talos = talosErr == nil
 
 		if !infos[0].isBack {
 			if IsCurrent(file) {
@@ -314,6 +326,13 @@ func confirm(name string) {
 	//		log.Fatal(err)
 	//	}
 
+	talosSource := pairedTalosConfig(source)
+	if _, err := os.Stat(talosSource); err != nil {
+		return
+	}
+	talosDest := filepath.Join(UserHomeDir(), ".talos", "config")
+	_ = os.Remove(talosDest)
+	_ = os.Link(talosSource, talosDest)
 }
 
 func refreshConfigs() {
