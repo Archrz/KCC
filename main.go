@@ -163,12 +163,15 @@ func UserHomeDir() string {
 }
 
 func kubePath() string {
-
 	return filepath.Join(UserHomeDir(), ".kube")
 }
 
+func talosPath() string {
+	return filepath.Join(UserHomeDir(), ".talos")
+}
+
 func talosConfigPath(kubeConfigPath string) string {
-	return filepath.Join(UserHomeDir(), ".talos", "configs", filepath.Base(kubeConfigPath))
+	return filepath.Join(talosPath(), "configs", filepath.Base(kubeConfigPath))
 }
 
 func loadConfigs() {
@@ -332,7 +335,7 @@ func confirm(name string) {
 	if _, err := os.Stat(talosSource); err != nil {
 		return
 	}
-	talosDest := filepath.Join(UserHomeDir(), ".talos", "config")
+	talosDest := filepath.Join(talosPath(), "config")
 	_ = os.Remove(talosDest)
 	_ = os.Link(talosSource, talosDest)
 }
@@ -384,26 +387,34 @@ func refreshConfigs() {
 	configList.SetCurrentItem(pos)
 }
 
-func ConfigPathExists() {
-	_, err := os.Stat(filepath.FromSlash(path))
-	if err != nil {
+func ensureConfigsDir(base string, requireBase bool) {
+	if _, err := os.Stat(base); err != nil {
+		if requireBase {
+			log.Fatal(err)
+		}
+	}
+	configsDir := filepath.Join(base, "configs")
+	if _, err := os.Stat(configsDir); err == nil {
+		return
+	}
+	if err := os.MkdirAll(configsDir, 0755); err != nil {
 		log.Fatal(err)
 	}
-	_, err = os.Stat(filepath.FromSlash(path + "/configs"))
+	data, err := os.ReadFile(filepath.Join(base, "config"))
 	if err != nil {
-		errors := os.MkdirAll(filepath.FromSlash(path+"/configs"), 0755)
-		if errors != nil {
-			log.Fatal(errors)
-		}
-		bytesRead, err := os.ReadFile(filepath.FromSlash(path + "/config"))
-		if err != nil {
+		if requireBase {
 			log.Fatal(err)
 		}
-		err = os.WriteFile(filepath.FromSlash(path+"/configs/config"), bytesRead, 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
+		return
 	}
+	if err := os.WriteFile(filepath.Join(configsDir, "config"), data, 0644); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ensureConfigDirs() {
+	ensureConfigsDir(kubePath(), true)
+	ensureConfigsDir(talosPath(), false)
 }
 func imports(from string, to string) {
 	dir, err := os.Getwd()
@@ -448,7 +459,7 @@ func main() {
 			os.Exit(0)
 		}
 	}
-	ConfigPathExists()
+	ensureConfigDirs()
 	loadConfigs()
 	go GetInfo()
 
