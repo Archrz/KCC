@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -26,6 +27,10 @@ var configs []string
 var path = kubePath()
 var newFolderPath = "/"
 var PrevFolder = []string{"config"}
+
+var DefaultPath = filepath.FromSlash(kubePath() + "/configs")
+
+var stuff []Item
 
 var config []ConfigInformation
 var infos []Info
@@ -77,6 +82,105 @@ type ConfigInformation struct {
 		} `yaml:"context"`
 		Name string `yaml:"name"`
 	} `yaml:"contexts"`
+}
+
+type Config struct {
+	Name     string
+	Path     string
+	FullPath string
+	FileName string
+	Verified bool
+}
+type Item struct {
+	Name        string
+	Path        string
+	FullPath    string
+	FileName    string
+	File        []byte
+	IsDir       bool
+	IsConfig    bool
+	IsVerified  bool
+	IsActive    bool
+	IsTalos     bool
+	IsBack      bool
+	Config      ConfigInformation
+	ClusterData struct {
+		Address   string
+		Port      int64
+		Nodes     int
+		Pods      int
+		Status    string
+		Test      string
+		Namespace string
+	}
+}
+
+func (c *Item) NewItem(path string) {
+	fileInfo, err := os.Stat(filepath.FromSlash(path))
+	FileErr(err)
+
+	c.Name = c.Config.Clusters[0].Name
+	c.SetPath(path)
+	c.IsDir = c.IsFolder()
+	c.IsConfig = fileInfo.Mode().IsRegular()
+	if c.IsConfig && !c.IsDir {
+		file, errors := os.ReadFile(filepath.FromSlash(c.Path))
+		FileErr(errors)
+		c.File = file
+	}
+
+}
+func (c *Item) GetFile() []byte {
+	if c.IsConfig && !c.IsDir {
+		file, errors := os.ReadFile(c.Path)
+		if !FileErr(errors) {
+			c.File = file
+			return file
+		}
+	}
+	return nil
+}
+func (c *Item) SetFileName(name string) {
+	c.FileName = name
+}
+func (c *Item) GetFileName() string {
+	return c.FileName
+}
+func (c *Item) SetPath(path string) {
+	c.Path = path
+}
+func (c *Item) GetPath() string {
+	return c.Path
+}
+func (c *Item) IsConfigFile() bool {
+	return c.IsConfig
+}
+func (c *Item) IsFolder() bool {
+	return c.IsDir
+}
+func (c *Item) Apply(){
+
+}
+func (c *Item) Ping(){
+
+}
+
+func FileErr(err error) bool {
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Println("File does not exist")
+			return true
+		} else if os.IsPermission(err) {
+			fmt.Println("Permission denied")
+			return false
+		} else if os.IsExist(err) {
+			fmt.Println("File exists")
+		} else {
+			fmt.Println(err)
+			return true
+		}
+	}
+	return false
 }
 
 func InfoDataDisplay(data Info) string {
@@ -165,6 +269,9 @@ func loadConfigs() {
 		log.Fatal(err)
 	}
 
+	var inn Item;
+	inn.Path = path + "/configs" + newFolderPath
+
 	var num = 0
 	if len(newFolderPath) > 1 {
 		var backInfo Info
@@ -174,6 +281,12 @@ func loadConfigs() {
 		configs = append(configs, " << Back to folder: "+PrevFolder[len(PrevFolder)-1])
 
 		infos = append(infos, backInfo)
+
+		inn.Name = " << Back to folder: "+PrevFolder[len(PrevFolder)-1]
+		inn.IsBack = true
+		inn.IsConfig = false
+		inn.IsDir = false
+
 		num++
 	}
 	if len(entries) == 0 {
@@ -188,6 +301,10 @@ func loadConfigs() {
 			newFolder.path = entry.Name()
 			infos = append(infos, newFolder)
 			config = append(config, ConfigInformation{})
+
+			inn.NewItem(filepath.FromSlash(DefaultPath + "/" + newFolderPath + "/" + entry.Name()))
+			inn.IsDir = true
+
 			num++
 			continue
 		}
@@ -303,17 +420,6 @@ func confirm(name string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	//	bytesRead, err := os.ReadFile(source)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-
-	//	err = os.WriteFile(dest, bytesRead, 0644)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-
 }
 
 func refreshConfigs() {
